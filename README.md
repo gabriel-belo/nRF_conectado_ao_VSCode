@@ -27,7 +27,9 @@ Para construir uma estrutura de projeto profissional no Zephyr, você precisa en
 
 * O que deve conter: Seu arquivo your_board.dts ou your_board.overlay irá descrever como seus sensores (adxl362, bmi270) estão conectados ao nRF9160, especificando a interface (I2C) e o endereço.
 
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------## Variáveis de ambiente
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## Variáveis de ambiente
 Em projetos com Zephyr, as variáveis de ambiente são valores que você define fora do seu código-fonte, mas que são usados pelo sistema de compilação (CMake e o Zephyr Build System) para configurar o seu projeto. Elas funcionam como chaves globais que podem ser acessadas por diferentes partes do processo de build.
 
 Elas são particularmente úteis para:
