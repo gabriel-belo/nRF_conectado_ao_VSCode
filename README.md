@@ -533,7 +533,137 @@ No mundo do Zephyr: A API é uma função C que você "chama" para pedir ao kern
 
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-## Criação de uma aplicação:
-1. Criar uma configuração de construção:
-Informa ao compilador quais arquivos da placa incluir na construção, tornando a saída compatível com a placa.
-3. 
+## Compreendendo o exemplo-application
+
+## 2. Diretório boards
+#### Por que essa estrutura é importante?
+A estrutura boards/ mostra uma das maiores forças do Zephyr: a sua portabilidade.
+
+Em um projeto de firmware profissional, é comum a empresa desenvolver sua própria placa de hardware. Em vez de ter que reescrever o código do zero para essa nova placa, a equipe de firmware pode simplesmente:
+
+* Criar um diretório para a nova placa dentro de boards/vendor/ (por exemplo, boards/vendor/minha_placa/).
+
+* Adicionar os arquivos de Device Tree (.dts, .overlay) que descrevem os pinos e componentes da placa.
+
+* Adicionar os arquivos de configuração Kconfig (Kconfig.board) para habilitar os recursos da placa.
+
+* Adicionar os arquivos .board.cmake para configurar as ferramentas de compilação e flash.
+
+Depois de fazer isso, o mesmo código de aplicativo pode ser compilado para a sua placa personalizada ou para uma placa de desenvolvimento padrão (como a nRF9160 DK), apenas alterando a variável BOARD. Isso economiza tempo e esforço, e é um dos motivos pelos quais o Zephyr é uma escolha popular para o desenvolvimento de produtos comerciais.
+
+#### A estratégia é:
+
+Desenvolvimento Inicial (nRF9160 DK): Você constrói seu aplicativo no diretório app/. O seu código em C (main.c, sensor_manager.c, etc.), as suas configurações de software (prj.conf) e as sobreposições de hardware (app.overlay) serão otimizadas para a placa nRF9160 DK. Durante esta fase, o sistema de build do Zephyr já sabe como lidar com a placa porque o suporte a ela já vem embutido no SDK.
+
+Transição para Placa Customizada: Quando chegar a hora de construir a sua própria placa com o chip nRF9160 e outros componentes, você não precisará reescrever o código do seu aplicativo. Em vez disso, você irá:
+
+* Criar um novo diretório dentro de boards/vendor/ (por exemplo, boards/vendor/minha_placa/).
+
+ Neste novo diretório, você criará os arquivos de configuração necessários para descrever sua nova placa.
+
+#### O que você fazer no novo diretório da sua placa?
+* Arquivo de Device Tree (.dts): Você criaria um arquivo (como minha_placa.dts) para descrever o hardware da sua placa, incluindo quais pinos estão conectados aos sensores, quais barramentos de comunicação (I2C, SPI) estão ativos e quais LEDs e botões foram adicionados.
+
+* Arquivo de Kconfig (Kconfig.board): Você criaria um arquivo para definir as configurações de software específicas da sua placa, como habilitar drivers para os componentes que você escolheu.
+
+* Arquivos de Compilação (.board.cmake): Se necessário, você criaria arquivos para configurar as ferramentas de compilação e flash para o seu novo hardware.
+
+A beleza dessa abordagem é que seu código-fonte principal, localizado em app/, permanece intocado. Para compilar seu aplicativo para a nova placa, você só precisaria dizer ao west qual é a nova BOARD.
+
+´´´Bash
+// Para compilar para a placa nRF9160 DK
+west build -b nrf9160dk_nrf9160
+
+// Para compilar para a sua nova placa
+west build -b minha_placa
+´´´
+
+### Explicação dos diretórios e arquivos pertencentes 
+
+1. ***common/***: Este diretório contém arquivos que são compartilhados entre várias placas personalizadas. O arquivo que você mencionou, example_runner.board.cmake, é um ótimo exemplo disso.
+
+* ***example_runner.board.cmake***: O sufixo .board.cmake indica que este arquivo é específico para a configuração do build de uma placa. No seu caso, este arquivo define um "runner" chamado example. Um runner é um script que o Zephyr usa para executar e depurar seu código em um hardware específico. Este arquivo em particular configura um "simulador de runner", o que é útil para testes. Ele não é algo que você usaria para a sua placa nRF9160 DK, mas mostra como você pode criar scripts personalizados para o seu próprio hardware.
+
+Pense no runner como o controle remoto da sua placa.
+
+#### O Que É Um "Runner"?
+Um "runner" é um programa ou script que o sistema de compilação do Zephyr usa para interagir diretamente com o hardware da sua placa. Ele é a ferramenta que:
+
+* O runner é o script que traduz os comandos de alto nível do west (west flash, west debug) para as instruções de baixo nível que a ferramenta de hardware (como o J-Link ou nrfjprog) entende.
+
+* Grava (flashes) o firmware compilado na memória do microcontrolador.
+
+* Inicia uma sessão de depuração (west debug).
+
+* Executa seu programa, seja em hardware real ou em um simulado
+
+Ele atua como uma camada de abstração entre o comando genérico do west (west flash) e a ferramenta de hardware específica (como o nrfjprog para as placas da Nordic, o J-Link ou o OpenOCD).
+
+Para placas customizadas, você precisa criar as definições do runner manualmente. Isso é feito nos arquivos .board.cmake dentro da estrutura do diretório boards/. Essa é a forma profissional de garantir que o seu aplicativo, que é portátil, possa ser facilmente compilado, gravado e depurado em qualquer hardware que você projetar.
+
+#### A Funcionalidade do example_runner.board.cmake
+O arquivo example_runner.board.cmake que você viu no repositório example-application é um exemplo de como um desenvolvedor cria um runner personalizado. Ele faz a ponte entre o comando de compilação do Zephyr e um "runner" chamado example.
+
+board_set_sim_runner_ifnset(example): Esta linha é a mais importante. Ela diz ao sistema de compilação do Zephyr: "Se nenhum runner já foi definido, configure a ferramenta example como o runner de simulação para esta placa."
+
+O prefixo sim significa que ele está sendo configurado para um simulador, o que é um caso de uso comum em testes automatizados.
+
+O nome example é apenas um nome simbólico para o script ou ferramenta que será usada.
+
+2.  ***vendor/***: Este diretório é usado para organizar placas por fabricante (vendor). É o lugar para arquivos específicos de uma placa. É uma convenção de nomenclatura comum. Se você estivesse desenvolvendo uma placa para a Nordic, por exemplo, o nome do diretório seria nordic. O example-application usa custom_plank para simbolizar uma placa personalizada que um desenvolvedor faria por conta própria.
+
+* ***board.cmake***: configuração específica da placa que você está usando.
+
+1º Definição dos Runners:
+As linhas board_runner_args(...) definem os argumentos (parâmetros) que são passados para os "runners" quando você os executa.
+
+* board_runner_args(jlink "--device=nrf52" "--speed=4000"): Esta linha informa ao sistema de build que, ao usar o runner J-Link, ele deve passar os argumentos --device=nrf52 e --speed=4000. Isso garante que a ferramenta J-Link saiba para qual chip ela está gravando e em qual velocidade.
+
+* board_runner_args(pyocd ...): Mesma coisa, mas para o runner pyOCD. Ele define o chip de destino e a frequência de comunicação.
+
+* board_runner_args(example ...): Esta linha define um argumento para o runner customizado chamado example, que vimos anteriormente.
+
+2º Variáveis de Ambiente:
+A linha set(OPENOCD_NRF5_SUBFAMILY "nrf52") cria uma variável local para o CMake. Ela define a subfamília do chip para o OpenOCD, uma ferramenta de depuração popular. Isso permite que outros scripts usem essa variável em vez de "hard-codar" o nome do chip.
+
+3º Inclusão de Outros Arquivos (include):
+As linhas include(...) são as mais importantes. Elas "importam" a configuração de outros arquivos .board.cmake para o arquivo atual.
+
+* include(${ZEPHYR_BASE}/boards/common/nrfjprog.board.cmake): Esta linha adiciona o runner da ferramenta nrfjprog da Nordic.
+
+* include(${ZEPHYR_BASE}/boards/common/jlink.board.cmake): Esta linha inclui o runner para a ferramenta J-Link.
+
+* include(${ZEPHYR_BASE}/boards/common/pyocd.board.cmake): Inclui o runner para a ferramenta pyOCD.
+
+* include(${ZEPHYR_BASE}/boards/common/openocd-nrf5.board.cmake): Inclui o runner para a ferramenta OpenOCD para chips nRF5.
+
+* include(${CMAKE_CURRENT_LIST_DIR}/../../common/example_runner.board.cmake): Esta linha importa o runner customizado que você viu no diretório common/, demonstrando como uma placa específica pode usar uma configuração genérica.
+
+* ***board.yaml***: Serve para definir as propriedades básicas e metadados da sua placa personalizada. Ele é um arquivo de configuração que fornece informações de alto nível sobre o seu hardware para o sistema de compilação e para as ferramentas do Zephyr.
+
+O conteúdo do board.yaml é escrito no formato YAML, que é fácil de ler e entender. Ele declara informações essenciais sobre a placa.
+
+* name: custom_plank: Define o nome da sua placa. Este é o nome que você usará com o comando west build -b custom_plank.
+
+* vendor: vendor: Especifica o fabricante da placa. A pasta onde o arquivo board.yaml está localizado deve corresponder a essa informação. No seu caso, a placa está dentro de boards/vendor/custom_plank.
+
+* socs:: Esta seção lista os chips (SoCs - System on a Chip) que podem ser usados com esta placa.
+
+- name: nrf52840: Indica que esta placa usa o SoC nrf52840. Isso é crucial para o sistema de compilação, pois ele usará esta informação para incluir os arquivos de configuração e drivers corretos para esse chip.
+
+Por que o board.yaml é importante?
+O board.yaml atua como o arquivo de manifesto da sua placa. Ele é a primeira coisa que o sistema de compilação do Zephyr lê quando você especifica um nome de placa.
+
+Em resumo, enquanto o Device Tree descreve as conexões do seu hardware, o board.yaml é a identidade da sua placa para o ecossistema do Zephyr.
+
+* ***custom_plank_defconfig***:  É um arquivo de configuração Kconfig que define as configurações padrão para a placa personalizada.
+
+* custom_plank_defconfig (Nível da Placa): Este arquivo define as configurações padrão para o hardware. Ele ativa funcionalidades que são intrínsecas à sua placa personalizada, como o tipo de processador (CONFIG_ARM_MPU) e as proteções de hardware. O propósito dele é garantir que qualquer aplicativo que seja compilado para a custom_plank já tenha essas configurações básicas habilitadas, sem que o desenvolvedor precise se preocupar com isso no prj.conf.
+
+* CONFIG_ARM_MPU=y e CONFIG_HW_STACK_PROTECTION=y: Estas linhas habilitam a Unidade de Proteção de Memória (MPU) e a proteção de pilha por hardware do chip, que são funcionalidades de segurança e estabilidade. A placa foi projetada com esses recursos, então eles são ativados por padrão para qualquer projeto.
+
+* CONFIG_SERIAL=y, CONFIG_CONSOLE=y, CONFIG_UART_CONSOLE=y: Estas linhas garantem que o console via UART esteja habilitado por padrão. Isso é uma conveniência para depuração, pois permite que o desenvolvedor veja mensagens de log logo de cara, sem ter que adicioná-las manualmente em cada novo projeto.
+
+Em suma, o defconfig é um atalho profissional. Ele centraliza as configurações básicas e essenciais da placa em um único arquivo, deixando o prj.conf livre para as configurações específicas do seu aplicativo.
+
+* ******:
