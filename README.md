@@ -471,6 +471,9 @@ O firmware gravado no chip é uma versão "limpa" do seu código, sem as informa
 
 O debugger no seu computador usa o arquivo ELF para saber exatamente qual linha do seu código C corresponde a qual instrução que está sendo executada no chip.
 
+### Servidor GDB
+
+
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 * main.c: Este é o ponto de entrada do seu código. É onde a execução do seu programa começa. A maior parte do seu código principal, como a inicialização e o loop de execução, vai aqui.
@@ -527,6 +530,7 @@ Para ler dados de um sensor: sensor_sample_fetch(sensor_dev);
 Essas funções são o "contrato" entre o seu código e o hardware. Elas são a interface que permite que você acesse as funcionalidades do hardware sem ter que saber exatamente como o chip funciona internamente. A documentação que você tem é justamente a lista de todas essas funções.
 
 No mundo do Zephyr: A API é uma função C que você "chama" para pedir ao kernel para fazer algo com o hardware (como ligar um LED ou ler um sensor). A requisição é feita no próprio chip, e o resultado (por exemplo, a leitura do sensor) é retornado pela função.
+
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ## Criação de uma aplicação:
